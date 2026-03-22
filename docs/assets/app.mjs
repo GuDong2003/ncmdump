@@ -5,8 +5,16 @@ const dropzone = document.querySelector("#dropzone");
 const results = document.querySelector("#results");
 const status = document.querySelector("#status");
 const clearButton = document.querySelector("#clear-results");
+const processedCount = document.querySelector("#processed-count");
+const successCount = document.querySelector("#success-count");
+const errorCount = document.querySelector("#error-count");
 
 const activeUrls = new Set();
+const counters = {
+  processed: 0,
+  success: 0,
+  error: 0,
+};
 
 function wordArrayFromUint8(bytes) {
   const words = [];
@@ -49,7 +57,18 @@ async function aesEcbDecrypt(keyBytes, dataBytes) {
 
 function setStatus(message, tone = "muted") {
   status.textContent = message;
-  status.style.color = tone === "error" ? "var(--danger)" : "var(--muted)";
+  status.classList.remove("is-error", "is-success");
+  if (tone === "error") {
+    status.classList.add("is-error");
+  } else if (tone === "success") {
+    status.classList.add("is-success");
+  }
+}
+
+function updateCounters() {
+  processedCount.textContent = String(counters.processed);
+  successCount.textContent = String(counters.success);
+  errorCount.textContent = String(counters.error);
 }
 
 function revokeActiveUrls() {
@@ -69,9 +88,21 @@ function downloadBlob(blob, filename) {
   anchor.click();
 }
 
+function formatBytes(size) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 function formatDuration(durationMs) {
   if (!durationMs) {
-    return "Unknown length";
+    return "未知时长";
   }
 
   const totalSeconds = Math.round(durationMs / 1000);
@@ -82,7 +113,7 @@ function formatDuration(durationMs) {
 
 function formatBitrate(bitrate) {
   if (!bitrate) {
-    return "Unknown bitrate";
+    return "未知码率";
   }
 
   return `${Math.round(bitrate / 1000)} kbps`;
@@ -91,10 +122,26 @@ function formatBitrate(bitrate) {
 function emptyResults() {
   results.innerHTML = `
     <div class="empty-state">
-      <p>No files processed yet.</p>
-      <span>Try dropping one or more NCM files into the panel above.</span>
+      <p>还没有解码结果</p>
+      <span>把 NCM 文件拖进投递区，页面会在浏览器里本地解码，并生成可下载的结果卡片。</span>
     </div>
   `;
+}
+
+function makeFact(labelText, valueText) {
+  const fact = document.createElement("div");
+  fact.className = "fact-card";
+
+  const label = document.createElement("span");
+  label.className = "fact-label";
+  label.textContent = labelText;
+
+  const value = document.createElement("span");
+  value.className = "fact-value";
+  value.textContent = valueText;
+
+  fact.append(label, value);
+  return fact;
 }
 
 function appendResultCard(result, summary) {
@@ -145,20 +192,37 @@ function appendResultCard(result, summary) {
   }
 
   const detail = document.createElement("div");
+  const factGrid = document.createElement("div");
+  factGrid.className = "fact-grid";
 
-  const source = document.createElement("p");
-  source.className = "result-meta";
-  source.textContent = `Source: ${result.sourceName}`;
+  factGrid.append(
+    makeFact("来源文件", result.sourceName),
+    makeFact("导出文件", result.outputName),
+    makeFact("音频大小", formatBytes(result.audioBytes.length)),
+    makeFact("封面状态", result.coverBytes.length > 0 ? "已提取" : "未内置"),
+  );
 
-  const output = document.createElement("p");
-  output.className = "result-meta";
-  output.textContent = `Output: ${result.outputName}`;
+  const audioPreview = document.createElement("audio");
+  audioPreview.className = "audio-preview";
+  audioPreview.controls = true;
+  audioPreview.preload = "none";
+  const previewUrl = URL.createObjectURL(new Blob([result.audioBytes], { type: result.audioMimeType }));
+  activeUrls.add(previewUrl);
+  audioPreview.src = previewUrl;
 
-  const warning = document.createElement("p");
-  warning.className = "result-warning";
-  warning.textContent = "Browser mode decodes audio and extracts cover art, but does not rewrite tags inside the output file.";
+  const note = document.createElement("p");
+  note.className = "result-note";
+  note.textContent = "网页模式会导出可播放音频，但不会像原生 CLI 一样把标签重新写回文件内部。";
 
-  detail.append(source, output, warning);
+  detail.append(factGrid, audioPreview, note);
+
+  if (result.coverBytes.length === 0) {
+    const warning = document.createElement("p");
+    warning.className = "result-warning";
+    warning.textContent = "这首歌没有内置封面，因此只生成音频文件。";
+    detail.appendChild(warning);
+  }
+
   grid.append(coverFrame, detail);
 
   const actions = document.createElement("div");
@@ -169,7 +233,7 @@ function appendResultCard(result, summary) {
   const downloadAudio = document.createElement("button");
   downloadAudio.className = "download-button primary";
   downloadAudio.type = "button";
-  downloadAudio.textContent = `Download ${summary.format}`;
+  downloadAudio.textContent = `下载 ${summary.format}`;
   downloadAudio.addEventListener("click", () => {
     downloadBlob(new Blob([result.audioBytes], { type: result.audioMimeType }), result.outputName);
   });
@@ -179,7 +243,7 @@ function appendResultCard(result, summary) {
     const downloadCover = document.createElement("button");
     downloadCover.className = "download-button secondary";
     downloadCover.type = "button";
-    downloadCover.textContent = "Download cover";
+    downloadCover.textContent = "下载封面";
     downloadCover.addEventListener("click", () => {
       downloadBlob(new Blob([result.coverBytes], { type: result.coverMimeType }), result.coverName);
     });
@@ -192,7 +256,7 @@ function appendResultCard(result, summary) {
 async function processFiles(fileList) {
   const files = Array.from(fileList).filter((file) => file.name.toLowerCase().endsWith(".ncm"));
   if (files.length === 0) {
-    setStatus("Please choose at least one .ncm file.", "error");
+    setStatus("请选择至少一个 .ncm 文件。", "error");
     return;
   }
 
@@ -200,17 +264,22 @@ async function processFiles(fileList) {
     results.innerHTML = "";
   }
 
-  setStatus(`Processing ${files.length} file(s)...`);
+  setStatus(`收到 ${files.length} 个文件，开始本地解码。`);
 
-  let successCount = 0;
   for (const file of files) {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const decoded = await decodeNcmData(file.name, arrayBuffer, aesEcbDecrypt);
       appendResultCard(decoded, describeTrack(decoded));
-      successCount += 1;
-      setStatus(`Decoded ${successCount}/${files.length} file(s).`);
+      counters.processed += 1;
+      counters.success += 1;
+      updateCounters();
+      setStatus(`已完成 ${counters.processed} 首，成功 ${counters.success} 首。`, "success");
     } catch (error) {
+      counters.processed += 1;
+      counters.error += 1;
+      updateCounters();
+
       const card = document.createElement("article");
       card.className = "result-card";
 
@@ -220,7 +289,7 @@ async function processFiles(fileList) {
       const topCopy = document.createElement("div");
       const tag = document.createElement("span");
       tag.className = "file-tag";
-      tag.textContent = "Error";
+      tag.textContent = "失败";
 
       const title = document.createElement("h3");
       title.className = "result-title";
@@ -236,7 +305,7 @@ async function processFiles(fileList) {
       card.appendChild(message);
 
       results.appendChild(card);
-      setStatus(`Decoded ${successCount}/${files.length} file(s), with errors.`, "error");
+      setStatus(`已处理 ${counters.processed} 首，其中失败 ${counters.error} 首。`, "error");
     }
   }
 }
@@ -265,8 +334,13 @@ fileInput.addEventListener("change", (event) => {
 
 clearButton.addEventListener("click", () => {
   revokeActiveUrls();
+  counters.processed = 0;
+  counters.success = 0;
+  counters.error = 0;
+  updateCounters();
   emptyResults();
-  setStatus("Waiting for files.");
+  setStatus("已清空结果，等待新的文件。");
 });
 
+updateCounters();
 emptyResults();

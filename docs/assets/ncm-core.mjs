@@ -39,14 +39,14 @@ function ensure(condition, message) {
 
 function formatArtists(artistField) {
   if (!Array.isArray(artistField)) {
-    return "Unknown artist";
+    return "未知歌手";
   }
 
   const names = artistField
     .map((entry) => Array.isArray(entry) ? entry[0] : null)
     .filter(Boolean);
 
-  return names.length > 0 ? names.join(" / ") : "Unknown artist";
+  return names.length > 0 ? names.join(" / ") : "未知歌手";
 }
 
 function stripTrailingNulls(text) {
@@ -59,15 +59,15 @@ function sanitizeBaseName(name) {
     .replace(/\s+/g, " ")
     .trim();
 
-  return cleaned || "decoded-track";
+  return cleaned || "已解码音频";
 }
 
 function stemFromFilename(filename) {
-  return filename.replace(/\.ncm$/i, "").replace(/\.[^.]+$/u, "") || "decoded-track";
+  return filename.replace(/\.ncm$/i, "").replace(/\.[^.]+$/u, "") || "已解码音频";
 }
 
 function buildKeyBox(key) {
-  ensure(key.length > 0, "Broken NCM key data.");
+  ensure(key.length > 0, "NCM 密钥块损坏，无法继续解码。");
 
   const keyBox = new Uint8Array(256);
   for (let index = 0; index < 256; index += 1) {
@@ -137,19 +137,19 @@ function makeReader(bytes) {
 
   return {
     read(length) {
-      ensure(offset + length <= bytes.length, "Unexpected end of NCM file.");
+      ensure(offset + length <= bytes.length, "文件意外结束，NCM 数据可能不完整。");
       const slice = bytes.slice(offset, offset + length);
       offset += length;
       return slice;
     },
     readUint32() {
-      ensure(offset + 4 <= bytes.length, "Unexpected end of NCM file.");
+      ensure(offset + 4 <= bytes.length, "文件意外结束，NCM 数据可能不完整。");
       const value = view.getUint32(offset, true);
       offset += 4;
       return value;
     },
     skip(length) {
-      ensure(offset + length <= bytes.length, "Unexpected end of NCM file.");
+      ensure(offset + length <= bytes.length, "文件意外结束，NCM 数据可能不完整。");
       offset += length;
     },
     remaining() {
@@ -159,23 +159,23 @@ function makeReader(bytes) {
 }
 
 export async function decodeNcmData(filename, arrayBuffer, aesEcbDecrypt) {
-  ensure(typeof aesEcbDecrypt === "function", "Missing AES decrypt helper.");
+  ensure(typeof aesEcbDecrypt === "function", "缺少 AES 解密模块，页面初始化不完整。");
 
   const bytes = new Uint8Array(arrayBuffer);
   const reader = makeReader(bytes);
 
-  ensure(reader.readUint32() === MAGIC_A && reader.readUint32() === MAGIC_B, "This file is not a valid NCM container.");
+  ensure(reader.readUint32() === MAGIC_A && reader.readUint32() === MAGIC_B, "这不是有效的 NCM 文件。");
   reader.skip(2);
 
   let blockLength = reader.readUint32();
-  ensure(blockLength > 0, "Broken NCM key block.");
+  ensure(blockLength > 0, "NCM 密钥块为空或已损坏。");
   const keyData = reader.read(blockLength);
   for (let index = 0; index < keyData.length; index += 1) {
     keyData[index] ^= 0x64;
   }
 
   const decryptedKey = await aesEcbDecrypt(CORE_KEY, keyData);
-  ensure(decryptedKey.length > 17, "Broken NCM decryption key.");
+  ensure(decryptedKey.length > 17, "解密后的密钥数据异常，无法建立 key box。");
   const keyBox = buildKeyBox(decryptedKey.slice(17));
 
   blockLength = reader.readUint32();
@@ -201,7 +201,7 @@ export async function decodeNcmData(filename, arrayBuffer, aesEcbDecrypt) {
     coverData = reader.read(coverLength);
   }
 
-  ensure(coverFrameLength >= coverLength, "Broken NCM cover block.");
+  ensure(coverFrameLength >= coverLength, "封面数据块异常，无法读取内嵌封面。");
   reader.skip(coverFrameLength - coverLength);
 
   const decryptedAudio = decryptAudio(reader.remaining(), keyBox);
@@ -221,13 +221,13 @@ export async function decodeNcmData(filename, arrayBuffer, aesEcbDecrypt) {
     coverBytes: coverData,
     coverMimeType,
     coverName: coverMimeType ? `${trackName}-cover.${coverExtensionFromMime(coverMimeType)}` : null,
-    warnings: coverData.length === 0 ? ["No embedded cover art found in this file."] : [],
+    warnings: coverData.length === 0 ? ["当前文件没有内嵌封面。"] : [],
   };
 }
 
 export function describeTrack(result) {
   const title = result.metadata?.musicName || stemFromFilename(result.sourceName);
-  const album = result.metadata?.album || "Unknown album";
+  const album = result.metadata?.album || "未知专辑";
 
   return {
     title,
