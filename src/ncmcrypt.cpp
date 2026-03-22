@@ -246,7 +246,7 @@ void NeteaseCrypt::FixMetadata()
     // tag->setComment(TagLib::String("Create by taurusxin/ncmdump.", TagLib::String::UTF8));
 
     audioFile->save();
-    audioFile->~File();
+    delete audioFile;
 }
 
 void NeteaseCrypt::Dump(std::string const &outputDir = "")
