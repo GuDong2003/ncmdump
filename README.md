@@ -1,180 +1,168 @@
 # ncmdump
 
-使用本程序可将下载的网易云音乐缓存文件（ncm）转换为 mp3 或 flac 格式
+将网易云音乐缓存文件 `*.ncm` 转换为可播放的 `mp3` 或 `flac`。
 
-## 简介
+本仓库保留原始 C++ 命令行工具与动态库能力，同时新增了一个可直接部署到 GitHub Pages 的浏览器版前端页面。
 
-该版本为最早的 C++ 版本，也是作者开发的市面上第一个支持 ncm 转换的程序
+## 项目来源
 
-源码复刻自 anonymous5l/ncmdump (2021年10月6日，原作者已经删库)
+本仓库会继续保留原作者和前序维护者信息。
 
-感谢前辈的付出！此版本做了全操作系统下的的跨平台编译移植，修复了一些内存溢出的问题。
+- 最早的源码复刻自 `anonymous5l/ncmdump`（原仓库已删除）
+- 跨平台 C++ 版本由 `taurusxin/ncmdump` 持续整理、移植与维护
+- 当前仓库 `GuDong2003/ncmdump` 基于上述项目继续维护，并补充了 Web UI、Pages 部署与部分稳定性修复
 
-1.3.0 版本更新说明：因为之前有较多 Issue 反馈无法解密带有特殊字符的文件名，例如中文、日文、韩文或者是表情符号等，在1.3.0以及之后的版本彻底修复了这个问题，所有的 UTF-8 字符都可以正常解密。并且还自带了 dll 的构建，可以供其他应用程序（C#、Python、Java等）调用。
+感谢原作者与前序维护者的工作。
 
-## 使用
+## 这个仓库新增了什么
 
-注意：网易云音乐 3.0 之后的某些版本，下载的 ncm 文件会出现不内置歌曲专辑的封面图片的情况，所需的封面图数据需要从网络获取，介于在一个小工具中嵌入庞大网络库的非必要性，可以移步我的另一个仓库 [ncmdump-go](https://git.taurusxin.com/taurusxin/ncmdump-go) 或者使用基于此项目开发的可视化 GUI 程序 [ncmdump-gui](https://git.taurusxin.com/taurusxin/ncmdump-gui)，其中后者基于前者，均完全使用 Golang 重写，并支持自动从元数据读取封面信息后从网络获取封面图并嵌入到目标音乐文件。
+- 保留原有 CLI / DLL 用法
+- 新增 GitHub Pages 静态网页，支持在浏览器中本地解码 `.ncm`
+- 新增中文前端 UI，支持拖拽上传、结果统计、封面提取、音频试听与下载
+- 补充 Pages 自动部署工作流
+- 修复部分稳定性问题，例如 TagLib 释放方式与 cJSON 空指针保护
 
-### GitHub Pages Web UI
+## 使用方式
 
-仓库现在额外提供了一个纯静态的 Web 页面，代码位于 `docs` 文件夹，可以直接部署到 GitHub Pages。
+注意：网易云音乐 3.0 之后的某些版本，下载的 ncm 文件可能不内置封面图片；这种情况下浏览器版和当前 CLI 都无法凭空补齐封面数据。若你需要自动联网补全封面，可以参考 `ncmdump-go` / `ncmdump-gui` 一类的后续实现思路。
 
-- 页面会在浏览器本地完成 NCM 解码，不会上传文件
-- 支持批量拖拽 `.ncm` 文件，并下载解码后的音频文件
-- 支持提取并下载封面图与元数据摘要
-- 浏览器版本目前不会像原生 CLI 一样重写音频文件内部的 ID3 / FLAC 标签
+### 浏览器版 Web UI
 
-如果你启用了仓库的 GitHub Pages，访问站点后即可直接使用；如果使用 Actions 部署，本仓库已经包含 `.github/workflows/pages.yml`
+仓库提供了一个纯静态页面，代码位于 `docs` 目录，可直接部署到 GitHub Pages：
+
+- 在线地址：`https://gudong2003.github.io/ncmdump/`
+- 所有解码都在浏览器本地完成，不上传文件
+- 支持批量拖拽 `.ncm` 文件
+- 支持导出音频、提取封面、查看歌曲基础信息、直接试听
+- 当前网页版本不会像原生 CLI 一样把 ID3 / FLAC 标签重新写回输出文件
 
 ### 命令行工具
 
-从 [Release](https://github.com/taurusxin/ncmdump/releases) 下载最新版本的对应系统的已编译好的二进制文件
+从当前仓库的 Releases 页面下载已编译好的版本：
 
-使用 `-h` 或 `--help` 参数来打印帮助
+- Release：`https://github.com/GuDong2003/ncmdump/releases`
+
+常用命令：
 
 ```shell
+# 帮助
 ncmdump -h
-```
 
-使用 `-v` 或 `--version` 参数来打印版本信息
-
-```shell
+# 版本信息
 ncmdump -v
-```
 
-处理单个或多个文件
+# 处理单个或多个文件
+ncmdump 1.ncm 2.ncm
 
-```shell
-ncmdump 1.ncm 2.ncm...
-```
-
-使用 `-d` 参数来指定一个文件夹，对文件夹下的所有以 ncm 为扩展名的文件进行批量处理
-
-```shell
+# 处理目录
 ncmdump -d source_dir
-```
 
-使用 `-r` 配合 `-d` 参数来递归处理文件夹下的所有以 ncm 为扩展名的文件
-
-```shell
+# 递归处理目录
 ncmdump -d source_dir -r
-```
 
-使用 `-m` 参数来删除源文件若正确处理
-
-```shell
+# 成功后删除源文件
 ncmdump -m
-```
 
-使用 `-o` 参数来指定输出目录，将转换后的文件输出到指定目录，该参数支持与 `-r` 参数一起使用
-
-```shell
-# 处理单个或多个文件并输出到指定目录
+# 输出到指定目录
 ncmdump 1.ncm 2.ncm -o output_dir
-
-# 处理文件夹下的所有以 ncm 为扩展名并输出到指定目录，不包含子文件夹
 ncmdump -d source_dir -o output_dir
-
-# 递归处理文件夹并输出到指定目录，并保留目录结构
 ncmdump -d source_dir -o output_dir -r
 ```
 
 ### 动态库
 
-或者，如果你想利用此项目进行二次开发，例如在你的 C#、Python、Java 等项目中调用，你可以使用 `libncmdump` 动态库，具体使用方法见仓库的 `example` 文件夹
+如果你想在 C#、Python、Java 等项目中调用本项目，可以使用 `libncmdump` 动态库，示例见 `example` 目录。
 
-请注意！如果你在 Windows 下开发，传递到库构造函数的文件名编码**必须为 UTF-8 编码**，否则会抛出运行时错误。
+注意：Windows 下传递到库构造函数的文件名编码必须为 UTF-8，否则会抛出运行时错误。
+
+## 部署 GitHub Pages
+
+仓库已包含 `.github/workflows/pages.yml`，默认使用 GitHub Actions 部署 `docs` 目录。
+
+### 使用 GitHub Actions
+
+1. 打开仓库 `Settings`
+2. 进入 `Pages`
+3. `Source` 选择 `GitHub Actions`
+4. 推送到 `main` 分支后等待 `Pages` 工作流完成
+
+### 使用 `/docs` 目录
+
+如果你更喜欢传统方式，也可以在仓库设置中把 Pages Source 指向 `main` 分支的 `/docs` 目录。
 
 ## 编译项目
 
-克隆本仓库
+克隆当前仓库：
 
 ```shell
-git clone https://github.com/taurusxin/ncmdump.git
+git clone https://github.com/GuDong2003/ncmdump.git
+cd ncmdump
 ```
 
 ### Windows
 
-安装 Visual Studio 2022 和 cmake，并安装 C++ 桌面开发环境，然后安装 [vcpkg](https://github.com/microsoft/vcpkg)
+安装 Visual Studio 2022、CMake，并准备好 C++ 桌面开发环境，再安装 `vcpkg`：
 
 ```shell
-# 安装 vcpkg 并安装 taglib 的静态库
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 ./bootstrap-vcpkg.bat
 ```
 
-配置项目
+配置并编译：
 
 ```shell
-# 使用 cmake 配置项目，替换 %VCPKG_ROOT% 为你的 vcpkg 安装路径
 cmake -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -B build
-
-# 编译项目
 cmake --build build -j 8 --config Release
 ```
 
 ### macOS
 
-macOS 下，你可以方便地使用 Homebrew 来安装 taglib 库
+先安装 TagLib：
 
 ```shell
-# 安装 taglib 库
 brew install taglib
+```
 
-# 配置项目
+然后配置并编译：
+
+```shell
 cmake -DCMAKE_BUILD_TYPE=Release -B build
-
-# 编译项目
 cmake --build build -j$(nproc)
 ```
 
 ### Linux
 
-Linux 下，由于 Ubuntu 24.04 的 taglib 仍然为 1.x 版本，不支持 CMake，所以需要手动编译安装 2.x 版本，目前 GitHub Actions 的 Linux 构建流程也是手动编译。
+由于 Ubuntu 24.04 的 TagLib 仍以 1.x 为主，不支持本项目当前的 CMake 依赖方式，所以需要先手动安装 2.x：
 
 ```shell
-# 拉取源码
 wget https://github.com/taglib/taglib/releases/download/v2.1.1/taglib-2.1.1.tar.gz
-
-# 解压并进入
 tar -xzf taglib-2.1.1.tar.gz && cd taglib-2.1.1
-
-# 配置、编译和安装
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release .
 make -j$(nproc)
 sudo make install
 ```
 
-然后和 macOS 上一样，使用 CMake 配置项目并编译项目
+回到项目目录后继续构建：
 
 ```shell
-# 配置项目
 cmake -DCMAKE_BUILD_TYPE=Release -B build
-
-# 编译项目
 cmake --build build -j$(nproc)
 ```
 
----
+## 构建产物
 
-你可以在 `build` 文件夹下找到编译好的二进制文件，以及一个可供其它项目使用的动态库(Windows Only)，使用方法见仓库的 `example` 文件夹
+- CLI 可执行文件会出现在 `build` 目录
+- Windows 下还会生成 `libncmdump.dll`
+- 具体调用方式可参考 `example` 目录
 
-## 部署 GitHub Pages
+## 仓库说明
 
-### 使用 Actions 自动部署
+如果你更关心原始 C++ 跨平台实现和历史维护脉络，可以参考：
 
-仓库已经提供了 GitHub Pages 工作流 `.github/workflows/pages.yml`，默认会把 `docs` 目录部署为静态站点。
-
-1. 在 GitHub 仓库设置中打开 Pages
-2. Source 选择 GitHub Actions
-3. 推送到 `main` 分支后等待 `Pages` 工作流完成
-
-### 使用分支目录部署
-
-如果你更喜欢传统方式，也可以在仓库设置中把 Pages Source 指向 `main` 分支的 `/docs` 目录
+- 上游维护仓库：`https://github.com/taurusxin/ncmdump`
+- 当前仓库：`https://github.com/GuDong2003/ncmdump`
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=taurusxin/ncmdump&type=Date)](https://star-history.com/#taurusxin/ncmdump&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=GuDong2003/ncmdump&type=Date)](https://star-history.com/#GuDong2003/ncmdump&Date)
