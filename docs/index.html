@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ncmdump Web</title>
+    <meta
+      name="description"
+      content="Decode NCM files directly in the browser and deploy the experience with GitHub Pages."
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="./assets/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+      <header class="hero reveal">
+        <p class="eyebrow">Browser-first refactor</p>
+        <h1>ncmdump now has a static web face for GitHub Pages.</h1>
+        <p class="hero-copy">
+          Drop one or more <code>.ncm</code> files to decode them in the browser. Nothing is uploaded: audio,
+          cover art, and metadata stay on your device.
+        </p>
+        <div class="hero-meta">
+          <span>Client-side only</span>
+          <span>Works on GitHub Pages</span>
+          <span>Downloads decoded audio</span>
+        </div>
+      </header>
+
+      <main class="content-grid">
+        <section class="panel drop-panel reveal">
+          <div class="panel-head">
+            <p class="kicker">Decode files</p>
+            <h2>Drag, drop, convert, download.</h2>
+          </div>
+
+          <label class="dropzone" id="dropzone" for="file-input">
+            <input id="file-input" type="file" accept=".ncm" multiple>
+            <span class="drop-title">Choose NCM files</span>
+            <span class="drop-copy">or drop them here for batch conversion</span>
+          </label>
+
+          <div class="actions">
+            <button class="ghost-button" id="clear-results" type="button">Clear results</button>
+            <p class="status" id="status">Waiting for files.</p>
+          </div>
+        </section>
+
+        <aside class="panel notes-panel reveal">
+          <div>
+            <p class="kicker">What changed</p>
+            <h2>Static deployment, native core logic.</h2>
+          </div>
+          <ul class="note-list">
+            <li>The page reuses the NCM parsing and key-box flow from the C++ implementation.</li>
+            <li>Decoded audio is generated in your browser and offered as a direct download.</li>
+            <li>Cover art and metadata are extracted when present in the source file.</li>
+            <li>Browser mode does not rewrite ID3 or FLAC tags like the native CLI does.</li>
+          </ul>
+        </aside>
+
+        <section class="panel results-panel reveal">
+          <div class="panel-head">
+            <p class="kicker">Results</p>
+            <h2>Converted tracks appear here.</h2>
+          </div>
+          <div class="results" id="results">
+            <div class="empty-state">
+              <p>No files processed yet.</p>
+              <span>Try the bundled GitHub Pages build after enabling Pages for this repository.</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+    <script type="module" src="./assets/app.mjs"></script>
+  </body>
+</html>

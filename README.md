@@ -16,6 +16,17 @@
 
 注意：网易云音乐 3.0 之后的某些版本，下载的 ncm 文件会出现不内置歌曲专辑的封面图片的情况，所需的封面图数据需要从网络获取，介于在一个小工具中嵌入庞大网络库的非必要性，可以移步我的另一个仓库 [ncmdump-go](https://git.taurusxin.com/taurusxin/ncmdump-go) 或者使用基于此项目开发的可视化 GUI 程序 [ncmdump-gui](https://git.taurusxin.com/taurusxin/ncmdump-gui)，其中后者基于前者，均完全使用 Golang 重写，并支持自动从元数据读取封面信息后从网络获取封面图并嵌入到目标音乐文件。
 
+### GitHub Pages Web UI
+
+仓库现在额外提供了一个纯静态的 Web 页面，代码位于 `docs` 文件夹，可以直接部署到 GitHub Pages。
+
+- 页面会在浏览器本地完成 NCM 解码，不会上传文件
+- 支持批量拖拽 `.ncm` 文件，并下载解码后的音频文件
+- 支持提取并下载封面图与元数据摘要
+- 浏览器版本目前不会像原生 CLI 一样重写音频文件内部的 ID3 / FLAC 标签
+
+如果你启用了仓库的 GitHub Pages，访问站点后即可直接使用；如果使用 Actions 部署，本仓库已经包含 `.github/workflows/pages.yml`
+
 ### 命令行工具
 
 从 [Release](https://github.com/taurusxin/ncmdump/releases) 下载最新版本的对应系统的已编译好的二进制文件
@@ -149,6 +160,20 @@ cmake --build build -j$(nproc)
 ---
 
 你可以在 `build` 文件夹下找到编译好的二进制文件，以及一个可供其它项目使用的动态库(Windows Only)，使用方法见仓库的 `example` 文件夹
+
+## 部署 GitHub Pages
+
+### 使用 Actions 自动部署
+
+仓库已经提供了 GitHub Pages 工作流 `.github/workflows/pages.yml`，默认会把 `docs` 目录部署为静态站点。
+
+1. 在 GitHub 仓库设置中打开 Pages
+2. Source 选择 GitHub Actions
+3. 推送到 `main` 分支后等待 `Pages` 工作流完成
+
+### 使用分支目录部署
+
+如果你更喜欢传统方式，也可以在仓库设置中把 Pages Source 指向 `main` 分支的 `/docs` 目录
 
 ## Star History
 
